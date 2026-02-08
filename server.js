@@ -14,6 +14,7 @@ app.use(cors());
 ================================ */
 const path = require('path');
 const multer = require('multer');
+const fs = require('fs');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, 'uploads');
