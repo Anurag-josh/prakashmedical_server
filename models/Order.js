@@ -2,12 +2,12 @@ const mongoose = require('mongoose');
 
 const orderSchema = mongoose.Schema({
     // LINK TO USER MODEL (optional for guest orders)
-    user: { 
-        type: mongoose.Schema.Types.ObjectId, 
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         default: null
     },
-    
+
     // Order Details
     orderItems: [
         {
@@ -21,12 +21,12 @@ const orderSchema = mongoose.Schema({
                 ref: 'Product',
             },
             // Optional: Store prescription image if uploaded
-            prescriptionImage: { type: String } 
+            prescriptionImage: { type: String }
         },
     ],
-    
+
     // Shipping Info (Snapshotted at time of order)
-    shippingAddress: { 
+    shippingAddress: {
         address: { type: String, required: true },
         city: { type: String, required: true },
         postalCode: { type: String, required: true },
@@ -44,18 +44,18 @@ const orderSchema = mongoose.Schema({
         update_time: { type: String },
         email_address: { type: String },
     },
-    
+
     totalPrice: { type: Number, required: true, default: 0.0 },
     isPaid: { type: Boolean, required: true, default: false },
     paidAt: { type: Date },
     isDelivered: { type: Boolean, required: true, default: false },
     deliveredAt: { type: Date },
-    
+
     // Order Status for Admin Panel
-    status: { 
-        type: String, 
+    status: {
+        type: String,
         enum: ['Pending', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'],
-        default: 'Pending' 
+        default: 'Pending'
     }
 }, {
     timestamps: true,

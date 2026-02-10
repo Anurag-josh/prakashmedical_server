@@ -56,7 +56,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 📤 UPLOAD ROUTE
 app.post('/api/upload', upload.single('image'), (req, res) => {
-  res.send(`/${req.file.path}`);
+  // Return the relative path for the uploaded image
+  // Extract just the filename from the full path
+  const fileName = path.basename(req.file.path);
+  res.send(`/uploads/${fileName}`);
 }, (error, req, res, next) => {
   res.status(400).send({ error: error.message });
 });
@@ -124,6 +127,19 @@ app.post("/api/orders", async (req, res) => {
       totalPrice,
     } = req.body;
 
+    console.log("Order request received:", {
+      customerName,
+      customerMobile,
+      customerEmail,
+      totalPrice,
+      orderItemsCount: orderItems?.length || 0
+    });
+
+    // Debug: Log prescription images for each item
+    orderItems?.forEach((item, index) => {
+      console.log(`Item ${index + 1}: ${item.name}, Prescription: ${item.prescriptionImage || 'None'}`);
+    });
+
     if (!orderItems || orderItems.length === 0) {
       return res.status(400).json({ message: "No items in order" });
     }
@@ -143,10 +159,46 @@ app.post("/api/orders", async (req, res) => {
     });
 
     const savedOrder = await order.save();
+
+    // Debug: Log saved order with prescriptions
+    console.log("Order saved successfully:", {
+      orderId: savedOrder._id,
+      itemsWithPrescriptions: savedOrder.orderItems.filter(item => item.prescriptionImage).length
+    });
+
     res.status(201).json(savedOrder);
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Order failed" });
+  }
+});
+
+//
+// 3️⃣ GET ALL ORDERS (for admin)
+//
+app.get("/api/orders", async (req, res) => {
+  try {
+    const orders = await Order.find({}).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+
+//
+// 4️⃣ GET ORDER BY ID
+//
+app.get("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    res.json(order);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
