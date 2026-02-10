@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const axios = require("axios");
 
 dotenv.config();
 const app = express();
@@ -144,6 +145,25 @@ app.post("/api/orders", async (req, res) => {
       return res.status(400).json({ message: "No items in order" });
     }
 
+    // Check inventory and reduce stock
+    for (const item of orderItems) {
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.status(404).json({ message: `Product not found: ${item.name}` });
+      }
+      
+      if (product.countInStock < item.qty) {
+        return res.status(400).json({ 
+          message: `Insufficient stock for ${item.name}. Available: ${product.countInStock}, Requested: ${item.qty}` 
+        });
+      }
+      
+      // Reduce inventory
+      product.countInStock -= item.qty;
+      await product.save();
+      console.log(`Reduced stock for ${item.name}: ${item.qty} units. Remaining: ${product.countInStock}`);
+    }
+
     // Map top-level customer details to shippingAddress schema
     const finalShippingAddress = {
       ...shippingAddress,
@@ -210,10 +230,32 @@ app.get("/", (req, res) => {
 });
 
 /* ===============================
+   RENDER SERVER HEARTBEAT
+================================ */
+const RENDER_SERVER_URL = "https://prakashmedical-server-4.onrender.com";
+
+// Function to ping Render server
+const pingRenderServer = async () => {
+  try {
+    const response = await axios.get(`${RENDER_SERVER_URL}/`);
+    console.log(`[${new Date().toISOString()}] Render server ping successful: ${response.status}`);
+  } catch (error) {
+    console.log(`[${new Date().toISOString()}] Render server ping failed:`, error.message);
+  }
+};
+
+// Ping Render server every 10 minutes (600000 ms)
+setInterval(pingRenderServer, 600000);
+
+// Initial ping on server start
+pingRenderServer();
+
+/* ===============================
    START SERVER
 ================================ */
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Render server heartbeat started - pinging every 10 minutes`);
 });
