@@ -147,21 +147,26 @@ app.post("/api/orders", async (req, res) => {
 
     // Check inventory and reduce stock
     for (const item of orderItems) {
-      const product = await Product.findById(item.product);
-      if (!product) {
-        return res.status(404).json({ message: `Product not found: ${item.name}` });
-      }
-      
-      if (product.countInStock < item.qty) {
-        return res.status(400).json({ 
-          message: `Insufficient stock for ${item.name}. Available: ${product.countInStock}, Requested: ${item.qty}` 
+      // Check inventory and reduce stock ATOMICALLY
+      // This prevents race conditions where multiple users buy the last item at the same time
+      const result = await Product.updateOne(
+        { _id: item.product, countInStock: { $gte: item.qty } },
+        { $inc: { countInStock: -item.qty } }
+      );
+
+      if (result.modifiedCount === 0) {
+        // If atomic update failed, it means either product invalid or insufficient stock
+        const product = await Product.findById(item.product);
+        if (!product) {
+          return res.status(404).json({ message: `Product not found: ${item.name}` });
+        }
+        // If product exists, it must be insufficient stock
+        return res.status(400).json({
+          message: `Insufficient stock for ${item.name}. Available: ${product.countInStock}, Requested: ${item.qty}`
         });
       }
-      
-      // Reduce inventory
-      product.countInStock -= item.qty;
-      await product.save();
-      console.log(`Reduced stock for ${item.name}: ${item.qty} units. Remaining: ${product.countInStock}`);
+
+      console.log(`Reduced stock for ${item.name}: ${item.qty} units.`);
     }
 
     // Map top-level customer details to shippingAddress schema
